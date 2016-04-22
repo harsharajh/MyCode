@@ -1,0 +1,30 @@
+#!/usr/bin/python
+
+from urllib import urlopen
+from json import loads
+import datetime
+import time
+
+attrs=[ "Read_Error_Rate", "Reallocated_Sectors_Count", "Spin_Retry_Count", "Runtime_Bad_Block", "End-to-End_error", "Reported_Uncorrectable_Errors", "Command_Timeout", "Reallocation_Event_Count", "Current_Pending_Sector_Count", "Uncorrectable_Sector_Count", "Soft_Read_Error_Rate", "Drive_Life_Protection_Status"]
+
+for att in attrs:
+ try:
+  url = "http://10.47.2.91/api/query?start=12h-ago&m=sum:fk-cloud.dc.smart.param{attrName=%s,host=*,serialName=*}" %att
+  dat=loads(urlopen(url).read())
+  fle = open("/usr/lib/fk-smart-analysis/fk-smart-analysis.log", "a")
+  count=0
+  for i in dat:
+        tmp = sorted(i['dps'].values())
+        if len(tmp) > 0:
+                if tmp[0] > float(0):
+                        dat = "dc.smart.analysis" + " " + str(datetime.datetime.now()) + " " + str( i['tags']['serialName']) + " " + str( tmp[0]) + "\n"
+                        fle.write(dat)
+                        count += 1
+  fle.close()
+
+  ticks=int(time.time())
+
+  print ticks, "dc.smart.analysis", count, "attrName=%s" %att
+
+ except:
+  continue
