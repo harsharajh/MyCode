@@ -7,7 +7,7 @@ import time
 
 attrs=[ "Read_Error_Rate", "Reallocated_Sectors_Count", "Spin_Retry_Count", "Runtime_Bad_Block", "End-to-End_error", "Reported_Uncorrectable_Errors", "Command_Timeout", "Reallocation_Event_Count", "Current_Pending_Sector_Count", "Uncorrectable_Sector_Count", "Soft_Read_Error_Rate", "Drive_Life_Protection_Status"]
 
-attr=["Reallocated_Sectors_Count"]
+#attr=["Reallocated_Sectors_Count"]
 fle = open("fk-smart-analysis.log", "a")
 for att in attrs:
  try:
@@ -23,12 +23,10 @@ for att in attrs:
    count =0
    for j in dat:
     if j['tags']['diskModel'] == i:
-     tmp = sorted(j['dps'].values())
-     if len(tmp) > 0:
-      if tmp[0] > float(0):
-       wri = "dc.smart.analysis" + " " + str(att) + " " + str(datetime.datetime.now()) + " " + str(j['tags']['host']) + " " + str( j['tags']['serialName']) + " " + str( j['tags']['diskModel']) +" " + str( j['dps'].values()[0]) + "\n"
-       fle.write(wri)
-       count += 1
+     if j['dps'].values()[0] > float(0):
+      wri = "dc.smart.analysis" + " " + str(att) + " " + str(datetime.datetime.now()) + " " + str(j['tags']['host']) + " " + str( j['tags']['serialName']) + " " + str( j['tags']['diskModel']) +" " + str( j['dps'].values()[0]) + "\n"
+      fle.write(wri)
+      count += 1
    fi[i] = count
 
   ticks=int(time.time())
