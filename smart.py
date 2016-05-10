@@ -9,7 +9,7 @@ import os
 import time
 
 #Function to get the Serial number and corresponding disk name
-def matchDiskSerial():
+def match_diskSerial():
     cmd="hdparm -I /dev/sd? | grep -B5 Serial\ Number  | grep -v Model| grep -v ATA| xargs -n5 | awk '{print $1, $4}'| tr -d :"
     disk_match = subprocess.Popen(cmd, shell=True, bufsize=8192, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
     diskmatch =disk_match.stdout.readlines()
@@ -20,7 +20,7 @@ def matchDiskSerial():
     return diskDet
 
 #Function to get the Model number
-def modelNumber():
+def model_number():
     cmd="hdparm -I /dev/sd? | grep -v Serial\ Number  | grep Model| grep -v ATA | awk '{print $NF}'"
     model_number = subprocess.Popen(cmd, shell=True, bufsize=8192, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
     modelnumber =model_number.stdout.readlines()
@@ -31,27 +31,41 @@ def modelNumber():
     return modelNum	
 
 #Function to get required Smartctl attributes
-def diskAttrib(diskname):
+def disk_attrib(diskname):
     cmd="smartctl -A %s | grep -w 'ID#' -A200| grep -v 'ID#'|awk '{print $1, $2, $9,$10}'| awk NF" %diskname.strip()
     attribs_list = subprocess.Popen(cmd, shell=True, bufsize=8192, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
     attribs =attribs_list.stdout.readlines()
     attribs_list.terminate()
     return attribs
 
-#Function to get required Smartctl attributes
-def diskextAttrib(diskname):
+#Function to get extended Smartctl attributes
+def diskext_attrib(diskname):
     if "TOSHIBA" in subprocess.check_output("lsscsi | grep %s" % diskname.strip(), shell=True):
         return ""
-    cmd="smartctl -x %s |  sed -n '/Page/,/^$/p'| grep -v \"|\" | grep -v ^$|grep -v === | grep -v Page|grep -v -i \"Unknown\"|sed  -r 's/(\s+)?\S+//1' | sed  -r 's/(\s+)?\S+//1' | sed  -r 's/(\s+)?\S+//1' | sed 's/^ *//g' | awk -F \"  \" '{print $1,\" \"$2}' | awk -F     \"  \" '{gsub(/ /,\"_\",$2); print }' |  awk -F \"  \" '{gsub(/~/,\"\",$1); print }'" %diskname.strip()
-    attribsext_list = subprocess.Popen(cmd, shell=True, bufsize=8192, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
-    attribsext =attribsext_list.stdout.readlines()
-    attribsext_list.terminate()
-    return attribsext
+    cmd="smartctl -x %s | sed -n '/Page/,/^$/p' | grep -v -e == -e Unknown -e normalized -e ^$ -e Page| awk '{ for(i=4; i<NF; i++) printf $i OFS; if(NF) printf $NF; printf ORS}'" %diskname.strip()
+    attribext_list = subprocess.Popen(cmd, shell=True, bufsize=8192, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+    attribext_temp =attribext_list.stdout.readlines()
+    data=str()
+    attribext = []
+    for raw_data in attribext_temp:
+        counter = 0
+        data=''
+        for word in raw_data.split(" "):
+                if counter == 0:
+                        data+=word
+                elif counter == 1:
+                        data=data+" "+word
+                else:
+                        data=data+"_"+word
+                counter+=1
+        attribext.append(data)
+    attribext_list.terminate()
+    return attribext
 
 #Function to get the hostname
-def findHostname():
+def find_hostname():
         cmd="hostname"
-        host_addr=subprocess.Popen(cmd, shell=True, bufsize=8192, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+        host_addr=subprocess.Popen(cmd, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
         hosts=host_addr.stdout.readlines()
         host_addr.terminate()
         hostaddr=hosts[0].strip()
@@ -67,8 +81,8 @@ if __name__ == "__main__":
   ticks = int(time.time())
   hostfind=findHostname()
   disklist = []
-  disk_match=matchDiskSerial()
-  model_number=modelNumber()
+  disk_match=match_diskSerial()
+  model_number=model_number()
   if len(disk_match) == len(model_number):
    for i in range(len(disk_match)):
     tm = str(disk_match[i]) + " " + str(model_number[i])
@@ -98,7 +112,7 @@ if __name__ == "__main__":
      val = j[3]
      if smart_id in attmatch.keys():
       atrt = attmatch[smart_id]
-      print ticks, "dc.smart.param", val, "host=%s" %hostfind, "diskName=%s" %diskname, "attrName=%s" %atrt, "serialName=%s" %serial, "diskModel=%s" %diskModel
+      #print ticks, "dc.smart.param", val, "host=%s" %hostfind, "diskName=%s" %diskname, "attrName=%s" %atrt, "serialName=%s" %serial, "diskModel=%s" %diskModel
      if atrt == 'Power-On_Hours':
         Power_On_Hours = j[3]
      if atrt == 'Total_LBAs_Written':
@@ -133,6 +147,7 @@ if __name__ == "__main__":
        else:
         nwdic[j][l] = 1
     attribext=diskextAttrib(diskname)
+    print attribext
     for k in attribext:
      k=k.strip()
      k=k.split()
@@ -145,7 +160,7 @@ if __name__ == "__main__":
      if atrtext == 'Logical_Sectors_Written':
         Logical_Sectors_Written = k[0]
 
-     print ticks, "dc.smart.param", rw_value, "host=%s" %hostfind, "diskName=%s" %diskname, "attrName=%s" %atrtext, "serialName=%s" %serial, "diskModel=%s" %diskModel
+     #print ticks, "dc.smart.param", rw_value, "host=%s" %hostfind, "diskName=%s" %diskname, "attrName=%s" %atrtext, "serialName=%s" %serial, "diskModel=%s" %diskModel
     
    year=float(Power_On_Hours)/(24*365)
    space= ((float(Total_LBAs_Read)*65536*512)+(float(Total_LBAs_Written)*65536*512))/(2*1024*1024*1024*1024)
@@ -155,9 +170,9 @@ if __name__ == "__main__":
    if float(yearext) != 0.0:
      spaceext=((float(Logical_Sectors_Written)*512)+(float(Logical_Sectors_Read)*512))/(2*1024*1024*1024*1024)
      spyrext= spaceext/yearext
-
+'''
   for i in nwdic:
    for j in nwdic[i]:
-    print ticks, "dc.smart.param", nwdic[i][j], "host=%s" %hostfind, "attrName=%s" %j, "diskModel=%s" %i
+    #print ticks, "dc.smart.param", nwdic[i][j], "host=%s" %hostfind, "attrName=%s" %j, "diskModel=%s" %i
     
-   
+'''   
